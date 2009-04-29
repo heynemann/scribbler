@@ -1,16 +1,12 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
-import sys
-from os.path import dirname, abspath, join
-root_path = abspath(join(dirname(__file__), "../../"))
-sys.path.insert(0, root_path)
-
 from Queue import Queue
 from threading import Thread
 
 class TestParser(object):
-    
+    def __init__(self, folders):
+        pass
 
 class TestRunner(object):
     Success = "SUCCESS"
