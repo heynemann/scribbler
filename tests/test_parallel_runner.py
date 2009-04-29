@@ -5,10 +5,11 @@ import time
 from datetime import datetime
 import sys
 from os.path import dirname, abspath, join
-root_path = abspath(join(dirname(__file__), "../../"))
+test_path = abspath(dirname(__file__))
+root_path = abspath(join(dirname(__file__), "../"))
 sys.path.insert(0, root_path)
 
-from scribbler import TestRunner, TestResult
+from scribbler import TestRunner, TestResult, TestParser
 
 def test_run_tests_in_parallel_returns_something():
     def do_nothing():
@@ -59,3 +60,16 @@ def test_running_tests_in_parallel_takes_a_proper_amount_of_time():
     if period.seconds <= 3 or period.seconds >= 5:
         raise ValueError("The test should have finished in ~10 seconds and finished in %d." % period.seconds)
 
+def test_running_tests_in_parallel_return_results():
+    parser = TestParser(tests_dir = join(test_path, "samples"))
+
+    parser.parse()
+    tests = parser.get_actions()
+
+    runner = TestRunner(test_suite = tests, working_threads = 5)
+    start_date = datetime.now()
+    result = runner.run()
+    
+    assert len(result.results) == 1
+    print result.errors[0]
+    assert result.results[0] == TestRunner.Success

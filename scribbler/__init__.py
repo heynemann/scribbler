@@ -1,12 +1,40 @@
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 
+import sys
+from os.path import join, split, splitext
 from Queue import Queue
 from threading import Thread
+import unittest
+from glob import glob
+import re
 
 class TestParser(object):
-    def __init__(self, folders):
-        pass
+    def __init__(self, tests_dir):
+        self.tests_dir = tests_dir
+        self.tests = []
+
+    def parse(self):
+        tests = []
+        loader = unittest.TestLoader()
+        for filename in glob(join(self.tests_dir, "*.py")):
+            filename = splitext(split(filename)[1])[0]
+            if re.match("^[a-zA-Z]\w+$", filename):
+                sys.path.append(self.tests_dir)
+                module = __import__('%s' % filename)
+                sys.path.pop()
+                tests.append(loader.loadTestsFromModule(module))
+        self.tests = tests
+
+    def get_actions(self):
+        tests = []
+        for test in self.tests:
+            for case in test._tests[0]._tests:
+                for item in dir(case):
+                    if re.match("test_", item):
+                        test_method = getattr(case, item)
+                        tests.append(lambda: test_method())
+        return tests
 
 class TestRunner(object):
     Success = "SUCCESS"
