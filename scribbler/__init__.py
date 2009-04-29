@@ -8,6 +8,7 @@ from threading import Thread
 import unittest
 from glob import glob
 import re
+import unittest
 
 class TestParser(object):
     def __init__(self, tests_dir):
@@ -33,7 +34,7 @@ class TestParser(object):
                 for item in dir(case):
                     if re.match("test_", item):
                         test_method = getattr(case, item)
-                        tests.append(lambda: test_method())
+                        tests.append(unittest.FunctionTestCase(test_method, None, None).run)
         return tests
 
 class TestRunner(object):

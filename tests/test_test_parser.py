@@ -43,4 +43,4 @@ def test_test_parser_returns_lambdas_for_each_test():
     
     assert len(tests) == 1
     import inspect
-    assert inspect.isfunction(tests[0])
+    assert inspect.ismethod(tests[0])
