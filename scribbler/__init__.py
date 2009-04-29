@@ -9,6 +9,9 @@ sys.path.insert(0, root_path)
 from Queue import Queue
 from threading import Thread
 
+class TestParser(object):
+    
+
 class TestRunner(object):
     Success = "SUCCESS"
     Failure = "FAILURE"
