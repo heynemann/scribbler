@@ -13,7 +13,7 @@ import unittest
 class TestParser(object):
     def __init__(self, tests_dir):
         self.tests_dir = tests_dir
-        self.tests = []
+        self.tests = {}
 
     def parse(self):
         tests = []
@@ -28,35 +28,45 @@ class TestParser(object):
         self.tests = tests
 
     def get_actions(self):
-        tests = []
+        tests = {}
         for test in self.tests:
-            for case in test._tests[0]._tests:
-                for item in dir(case):
-                    if re.match("test_", item):
-                        test_method = getattr(case, item)
-                        tests.append(unittest.FunctionTestCase(test_method, None, None).run)
+            for test2 in test._tests:
+                for case in test2._tests:
+                    test_case_name = case.__class__.__name__
+                    for item in dir(case):
+                        if re.match("test_", item):
+                            test_method = getattr(case, item)
+                            test_name = item
+                            tests["%s.%s" % (test_case_name, test_name)] = unittest.FunctionTestCase(test_method, None, None).run
         return tests
 
 class TestRunner(object):
-    Success = "SUCCESS"
-    Failure = "FAILURE"
+    before_test = None
+    test_successful = None
+    test_failed = None
 
     def __init__(self, test_suite, working_threads = 5):
         self.test_suite = test_suite
         self.working_threads = int(working_threads)
         self.test_queue = Queue()
         self.results = TestResult()
-        for item in self.test_suite:
-            self.test_queue.put(item)
+        for k, v in self.test_suite.items():
+            self.test_queue.put((k,v))
 
     def worker(self):
         while True:
-            item = self.test_queue.get()
+            name, test_method = self.test_queue.get()
             try:
-                result = item()
-                self.results.append(self.Success, None)
+                if self.before_test:
+                    self.before_test(name, test_method)
+                result = test_method()
+                if self.test_successful:
+                    self.test_successful(name, test_method)                
+                self.results.append(name, TestResult.Success, None)
             except Exception, err:
-                self.results.append(self.Failure, unicode(err))
+                if self.test_failed:
+                    self.test_failed(name, test_method, unicode(err))                
+                self.results.append(name, TestResult.Failure, unicode(err))
             self.test_queue.task_done()
 
     def start_processes(self):
@@ -73,10 +83,19 @@ class TestRunner(object):
         return self.results
 
 class TestResult(object):
+    Success = "SUCCESS"
+    Failure = "FAILURE"
+
     def __init__(self):
         self.results = []
-        self.errors = []
 
-    def append(self, test_result, error):
-        self.results.append(test_result)
-        self.errors.append(error)
+    def append(self, name, test_result, error):
+        self.results.append((name, test_result, error))
+    
+    def get_status(self):
+        status = self.Success
+        for name, test_result, error in self.results:
+            if error:
+                status = self.Failure
+        return status
+    
