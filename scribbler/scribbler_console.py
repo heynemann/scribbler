@@ -37,7 +37,7 @@ def main():
     parser = TestParser(tests_dir=tests_dir)
     parser.parse()
     
-    test_suite = parser.get_actions()
+    test_suite = parser.tests
     
     if not test_suite:
         print "No tests found under %s" % tests_dir
@@ -58,11 +58,6 @@ def main():
     results = runner.run()
 
     print
-
-    if results.get_status() != TestResult.Success:
-        print "Test run failed with the following errors:\n\n%s" % "\n".join(results.errors)
-        show_time(start_time)
-        sys.exit(1)
 
     print_tests(results)
 

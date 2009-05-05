@@ -2,13 +2,16 @@
 #-*- coding:utf-8 -*-
 
 import sys
-from os.path import join, split, splitext
+from os.path import dirname, abspath, join, split, splitext
+root_path = abspath(join(dirname(__file__), "../../"))
+sys.path.insert(0, root_path)
 from Queue import Queue
 from threading import Thread
 import unittest
-from glob import glob
 import re
-import unittest
+import inspect
+
+import locator
 
 class TestParser(object):
     def __init__(self, tests_dir):
@@ -17,28 +20,35 @@ class TestParser(object):
 
     def parse(self):
         tests = []
-        loader = unittest.TestLoader()
-        for filename in glob(join(self.tests_dir, "*.py")):
+        for filename in locator.locate("*.py", self.tests_dir):
             filename = splitext(split(filename)[1])[0]
             if re.match("^[a-zA-Z]\w+$", filename):
                 sys.path.append(self.tests_dir)
                 module = __import__('%s' % filename)
                 sys.path.pop()
-                tests.append(loader.loadTestsFromModule(module))
+                tests.extend(self.load_fixture_from_module(module))
         self.tests = tests
 
-    def get_actions(self):
-        tests = {}
-        for test in self.tests:
-            for test2 in test._tests:
-                for case in test2._tests:
-                    test_case_name = case.__class__.__name__
-                    for item in dir(case):
-                        if re.match("test_", item):
-                            test_method = getattr(case, item)
-                            test_name = item
-                            tests["%s.%s" % (test_case_name, test_name)] = unittest.FunctionTestCase(test_method, None, None).run
-        return tests
+    def load_fixture_from_module(self, module):
+        fixtures = []
+        for name in dir(module):
+            obj = getattr(module, name)
+            if not inspect.isclass(obj): continue
+            fixture = TestFixture()
+            fixture.test_case = obj
+            for method_name in dir(obj):
+                if method_name.startswith("test_"):
+                    fixture.tests.append(getattr(obj, method_name))
+                if method_name in ["setUp", "setup", "set_up"]:
+                    setup = getattr(obj, method_name)
+                    fixture.setup = setup
+                if method_name in ["tearDown", "teardown", "tear_down"]:
+                    teardown = getattr(obj, method_name)
+                    fixture.teardown = teardown
+            if fixture.tests:
+                fixtures.append(fixture)
+        
+        return fixtures
 
 class TestRunner(object):
     before_test = None
@@ -50,16 +60,29 @@ class TestRunner(object):
         self.working_threads = int(working_threads)
         self.test_queue = Queue()
         self.results = TestResult()
-        for k, v in self.test_suite.items():
-            self.test_queue.put((k,v))
+        for test_fixture in [suite for suite in self.test_suite if suite is not None]:
+            setup = test_fixture.setup
+            teardown = test_fixture.teardown
+            test_case = test_fixture.test_case
+            for test in test_fixture.tests: 
+                self.test_queue.put((test_case, setup, teardown, test))
 
     def worker(self):
         while True:
-            name, test_method = self.test_queue.get()
+            test_case_type, setup_method, teardown_method, test_method = self.test_queue.get()
+            name = test_method.__name__
             try:
                 if self.before_test:
                     self.before_test(name, test_method)
-                result = test_method()
+                if unittest.TestCase in test_case_type.__bases__:
+                    test_case = test_case_type(name)
+                else:
+                    test_case = test_case_type()
+                if setup_method: setup_method(test_case)
+                try:
+                    result = test_method(test_case)
+                finally:
+                    if teardown_method: teardown_method(test_case)
                 if self.test_successful:
                     self.test_successful(name, test_method)                
                 self.results.append(name, TestResult.Success, None)
@@ -98,4 +121,11 @@ class TestResult(object):
             if error:
                 status = self.Failure
         return status
+
+class TestFixture(object):
+    def __init__(self):
+        self.test_case = None
+        self.setup = None
+        self.teardown = None
+        self.tests = []
     

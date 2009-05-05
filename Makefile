@@ -8,12 +8,10 @@ build_dir=${root_dir}/build
 src_dir=${root_dir}/scribbler
 
 tests_dir=${root_dir}/tests
-unit_tests_dir=${tests_dir}/unit
-functional_tests_dir=${tests_dir}/functional
+unit_tests_dir=${tests_dir}
 
 compile_log_file=${build_dir}/compile.log
 unit_log_file=${build_dir}/unit.log
-functional_log_file=${build_dir}/functional.log
 
 nocoverage=false
 
@@ -27,22 +25,19 @@ help:
 	@echo "    all              compiles the code and runs all tests"
 	@echo "    clean            cleans the build directory"
 	@echo "    compile          compiles the python code"
-	@echo "    test             runs all tests (unit and functional)"
-	@echo "    unit             runs all unit tests"
-	@echo "    functional       runs all functional tests"
+	@echo "    test             runs all tests"
 	@echo "    codeanalyis      generates code analysis info"
 	@echo
 
 # orchestrator targets
 
 unit: prepare_build compile run_unit report_success
-functional: prepare_build compile run_functional report_success
 
 all: prepare_build compile test report_success
 
 prepare_build: clean create_build_dir
 
-test: run_unit run_functional
+test: run_unit
 
 clean: remove_build_dir
 
@@ -73,18 +68,7 @@ run_unit: compile
 	@if [ "$(nocoverage)" != "true" ]; then cat ${unit_log_file} | egrep '(Name)|(TOTAL)'; fi
 	@if [ "$(nocoverage)" = "true" ]; then echo 'Coverage Disabled.'; fi
 	@echo
-	
-run_functional: compile
-	@echo "Running functional tests..."
-	@rm -f ${functional_log_file} >> /dev/null
-	@if [ "$(nocoverage)" = "true" ]; then nosetests --verbose ${functional_tests_dir} >> ${functional_log_file} 2>> ${functional_log_file}; else nosetests --verbose --with-coverage --cover-package=scribbler ${functional_tests_dir} >> ${functional_log_file} 2>> ${functional_log_file}; fi
-	@echo "==================="
-	@echo "Functional coverage"
-	@echo "==================="
-	@if [ "$(nocoverage)" != "true" ]; then cat ${functional_log_file} | egrep '(Name)|(TOTAL)'; fi
-	@if [ "$(nocoverage)" = "true" ]; then echo 'Coverage Disabled.'; fi
-	@echo
-	
+		
 codeanalysis:
 	@echo "Generating code analysis..."
 	@sloccount ${root_dir}

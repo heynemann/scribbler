@@ -30,17 +30,7 @@ def test_test_parser_retrieves_sample_test():
     parser.parse()
     tests = parser.tests
     
-    #<unittest.TestSuite tests=[<unittest.TestSuite tests=[<sample_test.SampleTest testMethod=test_pass>]>]>
-    assert tests[0]._tests[0]._tests[0].__class__.__name__ == "SampleTest", \
-                "The test should be a SampleTest but it is a %s instead." % \
-                tests[0]._tests[0]._tests[0].__class__.__name__
+    assert tests[0].tests[0].__name__ == "test_pass", \
+                "The test should be test_pass but it is a %s instead." % \
+                tests[0].tests[0].__name__
 
-def test_test_parser_returns_lambdas_for_each_test():
-    parser = TestParser(tests_dir = join(test_path, "samples"))
-
-    parser.parse()
-    tests = parser.get_actions()
-    
-    assert len(tests) == 1
-    import inspect
-    assert inspect.ismethod(tests[0])
