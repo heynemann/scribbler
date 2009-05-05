@@ -9,7 +9,7 @@ What does it run?
 Scribbler will pick up any tests where:
 
 * The test method is inside a class
-* The test method's name starts with "test&#95;"
+* The test method's name starts with "test\_"
 
 It'll also pick setup methods (methods run before every test) where:
 
