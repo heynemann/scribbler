@@ -10,6 +10,7 @@ from threading import Thread
 import unittest
 import re
 import inspect
+import time
 
 import locator
 
@@ -21,10 +22,14 @@ class TestParser(object):
     def parse(self):
         tests = []
         for filename in locator.locate("*.py", self.tests_dir):
+            filedir = dirname(filename)
             filename = splitext(split(filename)[1])[0]
             if re.match("^[a-zA-Z]\w+$", filename):
-                sys.path.append(self.tests_dir)
-                module = __import__('%s' % filename)
+                sys.path.append(filedir)
+                try:
+                    module = __import__('%s' % filename)
+                except ImportError, err:
+                    raise SyntaxError("Error importing '%s'. Error: %s" % (filename, str(err)))
                 sys.path.pop()
                 tests.extend(self.load_fixture_from_module(module))
         self.tests = tests
@@ -54,6 +59,7 @@ class TestRunner(object):
     before_test = None
     test_successful = None
     test_failed = None
+    tests_executing = 0
 
     def __init__(self, test_suite, working_threads = 5):
         self.test_suite = test_suite
@@ -70,6 +76,7 @@ class TestRunner(object):
     def worker(self):
         while True:
             test_case_type, setup_method, teardown_method, test_method = self.test_queue.get()
+            self.tests_executing += 1
             name = test_method.__name__
             try:
                 if self.before_test:
@@ -90,6 +97,7 @@ class TestRunner(object):
                 if self.test_failed:
                     self.test_failed(name, test_method, unicode(err))                
                 self.results.append(name, TestResult.Failure, unicode(err))
+            self.tests_executing -= 1
             self.test_queue.task_done()
 
     def start_processes(self):
@@ -101,7 +109,12 @@ class TestRunner(object):
     def run(self):
         self.start_processes()
 
-        self.test_queue.join()
+        try:
+            time.sleep(0.5)
+            while (self.tests_executing > 0):
+                time.sleep(0.2)
+        except KeyboardInterrupt:
+            print "Test Run interrupted by the user..."
 
         return self.results
 
