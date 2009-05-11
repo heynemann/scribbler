@@ -11,45 +11,52 @@ import unittest
 import re
 import inspect
 import time
+import traceback
 
 import locator
 
 class TestParser(object):
-    def __init__(self, tests_dir):
+    def __init__(self, tests_dir, pattern):
         self.tests_dir = tests_dir
+        self.pattern = pattern
         self.tests = {}
 
     def parse(self):
         tests = []
-        for filename in locator.locate("*.py", self.tests_dir):
+        for filename in locator.locate(self.pattern, self.tests_dir):
             filedir = dirname(filename)
             filename = splitext(split(filename)[1])[0]
             if re.match("^[a-zA-Z]\w+$", filename):
                 sys.path.append(filedir)
                 try:
-                    module = __import__('%s' % filename)
+                    mod = __import__('%s' % filename)
                 except ImportError, err:
                     raise SyntaxError("Error importing '%s'. Error: %s" % (filename, str(err)))
                 sys.path.pop()
-                tests.extend(self.load_fixture_from_module(module))
+                tests.extend(self.load_fixture_from_module(mod))
         self.tests = tests
 
-    def load_fixture_from_module(self, module):
+    def load_fixture_from_module(self, mod):
         fixtures = []
-        for name in dir(module):
-            obj = getattr(module, name)
+        for key, obj in inspect.getmembers(mod):
             if not inspect.isclass(obj): continue
             fixture = TestFixture()
             fixture.test_case = obj
-            for method_name in dir(obj):
-                if method_name.startswith("test_"):
-                    fixture.tests.append(getattr(obj, method_name))
-                if method_name in ["setUp", "setup", "set_up"]:
-                    setup = getattr(obj, method_name)
-                    fixture.setup = setup
-                if method_name in ["tearDown", "teardown", "tear_down"]:
-                    teardown = getattr(obj, method_name)
-                    fixture.teardown = teardown
+            for key in dir(obj):
+                method = getattr(obj, key)
+                if not (inspect.ismethod(method) or inspect.isfunction(method)):
+                    continue
+                if key.startswith("test_"):
+                    fixture.tests.append(method)
+                    continue
+                if key in ["setUp", "setup", "set_up"]:
+                    if fixture.setup is None:
+                        fixture.setup = method
+                    continue
+                if key in ["tearDown", "teardown", "tear_down"]:
+                    if fixture.teardown is None:
+                        fixture.teardown = method
+                    continue
             if fixture.tests:
                 fixtures.append(fixture)
         
@@ -61,7 +68,7 @@ class TestRunner(object):
     test_failed = None
     tests_executing = 0
 
-    def __init__(self, test_suite, working_threads = 5):
+    def __init__(self, test_suite, pattern="*.py", working_threads = 5):
         self.test_suite = test_suite
         self.working_threads = int(working_threads)
         self.test_queue = Queue()
@@ -91,11 +98,11 @@ class TestRunner(object):
                 finally:
                     if teardown_method: teardown_method(test_case)
                 if self.test_successful:
-                    self.test_successful(name, test_method)                
+                    self.test_successful(name, test_method)
                 self.results.append(name, TestResult.Success, None)
             except Exception, err:
                 if self.test_failed:
-                    self.test_failed(name, test_method, unicode(err))                
+                    self.test_failed(name, test_method, traceback.format_exc())
                 self.results.append(name, TestResult.Failure, unicode(err))
             self.tests_executing -= 1
             self.test_queue.task_done()
