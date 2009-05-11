@@ -16,7 +16,7 @@ import traceback
 import locator
 
 class TestParser(object):
-    def __init__(self, tests_dir, pattern):
+    def __init__(self, tests_dir, pattern="*.py"):
         self.tests_dir = tests_dir
         self.pattern = pattern
         self.tests = {}
