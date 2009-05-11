@@ -55,7 +55,7 @@ def test_run_tests_in_parallel_returns_failure_and_error_message_from_the_test_i
     runner = TestRunner(test_suite = test_suite, working_threads = 5)
     result = runner.run()
     assert result.results[0][1] == TestResult.Failure
-    assert result.results[0][2] == "True can never be False"
+    assert "True can never be False" in result.results[0][2], "Error message returned is different from expected one: %s" % result.results[0][2]
 
 def test_running_tests_in_parallel_takes_a_proper_amount_of_time():
     def do_sleep(cls):

@@ -102,8 +102,8 @@ class TestRunner(object):
                 self.results.append(name, TestResult.Success, None)
             except Exception, err:
                 if self.test_failed:
-                    self.test_failed(name, test_method, traceback.format_exc())
-                self.results.append(name, TestResult.Failure, unicode(err))
+                    self.test_failed(name, test_method, err)
+                self.results.append(name, TestResult.Failure, traceback.format_exc())
             self.tests_executing -= 1
             self.test_queue.task_done()
 
