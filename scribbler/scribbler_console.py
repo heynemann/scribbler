@@ -44,7 +44,7 @@ def main():
         print "No tests found under %s with the %s pattern" % (tests_dir, options.pattern)
         sys.exit(0)
     
-    runner = TestRunner(test_suite=test_suite, pattern=options.pattern, working_threads=int(options.threads))
+    runner = TestRunner(test_suite=test_suite, working_threads=int(options.threads))
     
     def print_success(name, test):
         sys.stdout.write(".")

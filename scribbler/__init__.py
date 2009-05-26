@@ -68,7 +68,7 @@ class TestRunner(object):
     test_failed = None
     tests_executing = 0
 
-    def __init__(self, test_suite, pattern="*.py", working_threads = 5):
+    def __init__(self, test_suite, working_threads = 5):
         self.test_suite = test_suite
         self.working_threads = int(working_threads)
         self.test_queue = Queue()
